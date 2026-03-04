@@ -98,7 +98,7 @@ Then open the MCP Inspector at `http://localhost:8001`.
 ## Development
 
 ```bash
-git clone https://github.com/KI7MT/eqsl-mcp.git
+git clone https://github.com/qso-graph/eqsl-mcp.git
 cd eqsl-mcp
 pip install -e .
 ```

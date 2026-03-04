@@ -29,8 +29,8 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://qso-graph.io/"
-Repository = "https://github.com/KI7MT/eqsl-mcp"
-Issues = "https://github.com/KI7MT/eqsl-mcp/issues"
+Repository = "https://github.com/qso-graph/eqsl-mcp"
+Issues = "https://github.com/qso-graph/eqsl-mcp/issues"
 
 [project.scripts]
 eqsl-mcp = "eqsl_mcp.server:main"
