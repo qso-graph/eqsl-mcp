@@ -37,7 +37,11 @@ adif-mcp persona secret ki7mt eqsl
 
 ### 2. Configure your MCP client
 
-**Claude Desktop** (`claude_desktop_config.json`):
+eqsl-mcp works with any MCP-compatible client. Add the server config and restart — tools appear automatically.
+
+#### Claude Desktop
+
+Add to `claude_desktop_config.json` (`~/Library/Application Support/Claude/` on macOS, `%APPDATA%\Claude\` on Windows):
 
 ```json
 {
@@ -49,7 +53,65 @@ adif-mcp persona secret ki7mt eqsl
 }
 ```
 
-**Claude Code** (`.mcp.json`):
+#### Claude Code
+
+Add to `.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "eqsl": {
+      "command": "eqsl-mcp"
+    }
+  }
+}
+```
+
+#### ChatGPT Desktop
+
+ChatGPT supports MCP via the [OpenAI Agents SDK](https://developers.openai.com/api/docs/mcp/). Add under Settings > Apps & Connectors, or configure in your agent definition:
+
+```json
+{
+  "mcpServers": {
+    "eqsl": {
+      "command": "eqsl-mcp"
+    }
+  }
+}
+```
+
+#### Cursor
+
+Add to `.cursor/mcp.json` (project-level) or `~/.cursor/mcp.json` (global):
+
+```json
+{
+  "mcpServers": {
+    "eqsl": {
+      "command": "eqsl-mcp"
+    }
+  }
+}
+```
+
+#### VS Code / GitHub Copilot
+
+Add to `.vscode/mcp.json` in your workspace:
+
+```json
+{
+  "servers": {
+    "eqsl": {
+      "command": "eqsl-mcp"
+    }
+  }
+}
+```
+
+#### Gemini CLI
+
+Add to `~/.gemini/settings.json` (global) or `.gemini/settings.json` (project):
 
 ```json
 {
