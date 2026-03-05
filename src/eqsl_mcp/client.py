@@ -32,13 +32,20 @@ def _is_mock() -> bool:
 
 def _get(url: str, query: dict[str, Any] | None = None,
          timeout: float = 15.0) -> tuple[int, str]:
-    """HTTP GET, return (status, text)."""
+    """HTTP GET, return (status, text).
+
+    Catches all urllib exceptions to prevent credential-bearing URLs
+    from leaking through error messages (eQSL puts passwords in query params).
+    """
     if query:
         qs = urllib.parse.urlencode(query, doseq=True)
         url = f"{url}?{qs}"
     req = urllib.request.Request(url, method="GET")
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return resp.status, resp.read().decode("utf-8", errors="replace")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.status, resp.read().decode("utf-8", errors="replace")
+    except Exception:
+        raise RuntimeError("eQSL request failed — check network and credentials")
 
 
 # ---------------------------------------------------------------------------
