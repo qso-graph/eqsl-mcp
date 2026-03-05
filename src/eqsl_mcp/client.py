@@ -10,7 +10,7 @@ from typing import Any
 
 from adif_mcp.identity import PersonaManager
 
-from .parser import FetchResult, QsoRecord, parse_adif, to_mmddyyyy, to_qso, to_yyyymmddhhmm
+from .parser import FetchResult, parse_adif, to_mmddyyyy, to_qso, to_yyyymmddhhmm
 
 _BASE = "https://www.eqsl.cc"
 
@@ -49,8 +49,59 @@ def _get(url: str, query: dict[str, Any] | None = None,
 
 
 # ---------------------------------------------------------------------------
-# eqsl_inbox
+# eqsl_inbox / eqsl_download
 # ---------------------------------------------------------------------------
+
+def _fetch_inbox_adif(
+    pm: PersonaManager,
+    persona: str,
+    since: str | None = None,
+    qth_nickname: str | None = None,
+) -> str:
+    """Fetch raw ADIF text from eQSL inbox.
+
+    Two-step flow: GET DownloadInBox.cfm → parse HTML for .adi link → fetch ADIF.
+    Fallback: if the response body contains <EOH> or <EOR>, treat as direct ADIF.
+    Returns raw ADIF text string.
+    """
+    if _is_mock():
+        sample = os.getenv("EQSL_MCP_ADIF")
+        if sample and os.path.exists(sample):
+            return open(sample, encoding="utf-8").read()
+        return _MOCK_ADIF
+
+    username, password = pm.require(persona, "eqsl")
+
+    query: dict[str, Any] = {
+        "UserName": username,
+        "Password": password,
+    }
+    if since is not None:
+        query["RcvdSince"] = to_yyyymmddhhmm(since)
+    if qth_nickname:
+        query["QTHNickname"] = qth_nickname
+
+    status, body = _get(f"{_BASE}/qslcard/DownloadInBox.cfm", query)
+    if status != 200:
+        return ""
+
+    # Check if this is already ADIF (some responses come direct)
+    upper = body.upper()
+    if "<EOH>" in upper or "<EOR>" in upper:
+        return body
+
+    # Two-step: extract .adi link from HTML
+    m = _ADI_LINK_RE.search(body)
+    if not m:
+        return ""
+
+    adi_url = m.group(1)
+    if not adi_url.startswith("http"):
+        adi_url = f"{_BASE}{adi_url}" if adi_url.startswith("/") else f"{_BASE}/{adi_url}"
+
+    _, adif_text = _get(adi_url)
+    return adif_text
+
 
 def download_inbox(
     pm: PersonaManager,
@@ -58,49 +109,27 @@ def download_inbox(
     since: str | None = None,
     qth_nickname: str | None = None,
 ) -> FetchResult:
-    """Download incoming eQSLs for a persona.
-
-    Two-step flow: GET DownloadInBox.cfm → parse HTML for .adi link → fetch ADIF.
-    Fallback: if the response body contains <EOH> or <EOR>, treat as direct ADIF.
-    """
-    if _is_mock():
-        sample = os.getenv("EQSL_MCP_ADIF")
-        if sample and os.path.exists(sample):
-            text = open(sample, encoding="utf-8").read()
-        else:
-            text = _MOCK_ADIF
-        return FetchResult(records=[to_qso(r) for r in parse_adif(text)])
-
-    username, password = pm.require(persona, "eqsl")
-
-    query: dict[str, Any] = {
-        "UserName": username,
-        "Password": password,
-        "RcvdSince": to_yyyymmddhhmm(since),
-    }
-    if qth_nickname:
-        query["QTHNickname"] = qth_nickname
-
-    status, body = _get(f"{_BASE}/qslcard/DownloadInBox.cfm", query)
-    if status != 200:
+    """Download incoming eQSLs for a persona, parsed into records."""
+    adif_text = _fetch_inbox_adif(pm, persona, since=since, qth_nickname=qth_nickname)
+    if not adif_text:
         return FetchResult(records=[])
-
-    # Check if this is already ADIF (some responses come direct)
-    upper = body.upper()
-    if "<EOH>" in upper or "<EOR>" in upper:
-        return FetchResult(records=[to_qso(r) for r in parse_adif(body)])
-
-    # Two-step: extract .adi link from HTML
-    m = _ADI_LINK_RE.search(body)
-    if not m:
-        return FetchResult(records=[])
-
-    adi_url = m.group(1)
-    if not adi_url.startswith("http"):
-        adi_url = f"{_BASE}{adi_url}" if adi_url.startswith("/") else f"{_BASE}/{adi_url}"
-
-    _, adif_text = _get(adi_url)
     return FetchResult(records=[to_qso(r) for r in parse_adif(adif_text)])
+
+
+def download_adif(
+    pm: PersonaManager,
+    persona: str,
+    since: str | None = None,
+    qth_nickname: str | None = None,
+) -> dict[str, Any]:
+    """Download eQSL inbox as raw ADIF text.
+
+    Omit 'since' to download entire inbox history.
+    Returns dict with 'adif' (raw text) and 'record_count'.
+    """
+    adif_text = _fetch_inbox_adif(pm, persona, since=since, qth_nickname=qth_nickname)
+    record_count = adif_text.upper().count("<EOR>")
+    return {"adif": adif_text, "record_count": record_count}
 
 
 # ---------------------------------------------------------------------------

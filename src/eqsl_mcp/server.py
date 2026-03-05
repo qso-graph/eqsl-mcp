@@ -11,7 +11,7 @@ from adif_mcp.identity.errors import CredentialError
 
 from . import __version__
 from .ag_cache import is_ag
-from .client import download_inbox, last_upload_date, verify_qso
+from .client import download_adif, download_inbox, last_upload_date, verify_qso
 
 mcp = FastMCP(
     "eqsl-mcp",
@@ -119,6 +119,31 @@ def eqsl_ag_check(callsign: str) -> dict:
         return {"callsign": callsign.upper(), "ag": ag}
     except Exception as e:
         return {"callsign": callsign.upper(), "ag": None, "error": str(e)}
+
+
+@mcp.tool()
+def eqsl_download(
+    persona: str,
+    since: str | None = None,
+    qth_nickname: str | None = None,
+) -> dict:
+    """Download your complete eQSL inbox as raw ADIF text.
+
+    Returns the .adi file content — save to disk for import into your logger.
+    Omit 'since' to download your entire inbox history.
+
+    Args:
+        persona: Persona name configured in adif-mcp.
+        since: Only records added since this date (YYYY-MM-DD). Omit for full history.
+        qth_nickname: QTH profile name (for multi-QTH callsigns).
+
+    Returns:
+        Raw ADIF text and record count.
+    """
+    try:
+        return download_adif(_pm(), persona, since=since, qth_nickname=qth_nickname)
+    except CredentialError as e:
+        return {"error": str(e)}
 
 
 @mcp.tool()
