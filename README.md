@@ -1,3 +1,4 @@
+<!-- mcp-name: io.github.qso-graph/eqsl-mcp -->
 # eqsl-mcp
 
 MCP server for [eQSL.cc](https://www.eqsl.cc/) — download incoming eQSLs, verify QSOs, check AG status, and query upload history through any MCP-compatible AI assistant.
