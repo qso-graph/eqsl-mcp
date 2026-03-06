@@ -31,7 +31,7 @@ def _is_mock() -> bool:
 
 
 def _get(url: str, query: dict[str, Any] | None = None,
-         timeout: float = 15.0) -> tuple[int, str]:
+         timeout: float = 30.0) -> tuple[int, str]:
     """HTTP GET, return (status, text).
 
     Catches all urllib exceptions to prevent credential-bearing URLs
@@ -152,8 +152,8 @@ def verify_qso(
         return {"verified": True, "ag": True, "message": "Result - QSO on file for AG member"}
 
     query: dict[str, Any] = {
-        "Callsign": from_call.upper(),
-        "HisCall": to_call.upper(),
+        "CallsignFrom": from_call.upper(),
+        "CallsignTo": to_call.upper(),
         "QSOBand": band.upper(),
         "QSODate": to_mmddyyyy(qso_date),
     }
