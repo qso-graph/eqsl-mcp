@@ -187,5 +187,8 @@ def last_upload_date(pm: PersonaManager, persona: str) -> dict[str, Any]:
     if status != 200:
         return {"persona": persona, "last_upload": None, "error": f"HTTP {status}"}
 
-    # The response is typically plain text with the date
-    return {"persona": persona, "last_upload": body.strip()}
+    # Response is HTML-wrapped — strip tags and extract text content
+    text = re.sub(r"<[^>]+>", "", body).strip()
+    if not text or "error" in text.lower():
+        return {"persona": persona, "last_upload": None, "error": text or "Unknown error"}
+    return {"persona": persona, "last_upload": text}
