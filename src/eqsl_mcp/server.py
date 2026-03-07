@@ -6,8 +6,8 @@ import sys
 
 from fastmcp import FastMCP
 
-from adif_mcp.identity import PersonaManager
-from adif_mcp.identity.errors import CredentialError
+from qso_graph_auth.identity import PersonaManager
+from qso_graph_auth.identity.errors import CredentialError
 
 from . import __version__
 from .ag_cache import is_ag

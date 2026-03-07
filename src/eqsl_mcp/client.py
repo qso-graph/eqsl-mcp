@@ -8,7 +8,7 @@ import urllib.parse
 import urllib.request
 from typing import Any
 
-from adif_mcp.identity import PersonaManager
+from qso_graph_auth.identity import PersonaManager
 
 from .parser import FetchResult, parse_adif, to_mmddyyyy, to_qso, to_yyyymmddhhmm
 
