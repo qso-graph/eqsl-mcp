@@ -3,7 +3,7 @@
 
 MCP server for [eQSL.cc](https://www.eqsl.cc/) — download incoming eQSLs, verify QSOs, check AG status, and query upload history through any MCP-compatible AI assistant.
 
-Part of the [qso-graph](https://qso-graph.io/) project. Depends on [adif-mcp](https://pypi.org/project/adif-mcp/) for persona and credential management.
+Part of the [qso-graph](https://qso-graph.io/) project. Uses [qso-graph-auth](https://pypi.org/project/qso-graph-auth/) for credential management.
 
 ## Install
 
@@ -24,16 +24,16 @@ pip install eqsl-mcp
 
 ### 1. Set up credentials
 
-eqsl-mcp uses adif-mcp personas for credential management:
+eqsl-mcp uses qso-graph-auth personas for credential management:
 
 ```bash
-# Install adif-mcp if you haven't
-pip install adif-mcp
+# Install qso-graph-auth if you haven't
+pip install qso-graph-auth
 
 # Create a persona and add eQSL credentials
-adif-mcp persona create ki7mt --callsign KI7MT
-adif-mcp persona provider ki7mt eqsl --username KI7MT
-adif-mcp persona secret ki7mt eqsl
+qso-auth persona create ki7mt --callsign KI7MT
+qso-auth persona provider ki7mt eqsl --username KI7MT
+qso-auth persona secret ki7mt eqsl
 ```
 
 ### 2. Configure your MCP client
