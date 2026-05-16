@@ -9,7 +9,7 @@ from fastmcp import FastMCP
 from qso_graph_auth.identity import PersonaManager
 from qso_graph_auth.identity.errors import CredentialError
 
-from . import __version__
+from . import __spec_version__, __version__
 from .ag_cache import is_ag
 from .client import download_adif, download_inbox, last_upload_date, verify_qso
 
@@ -27,6 +27,31 @@ def _pm() -> PersonaManager:
 # ---------------------------------------------------------------------------
 # Tools
 # ---------------------------------------------------------------------------
+
+
+def _version_info_payload() -> dict[str, str]:
+    """Build the version info envelope. Pulled into a helper so tests can
+    call it directly without going through the FastMCP wrapper."""
+    return {
+        "service_name": "eqsl-mcp",
+        "service_version": __version__,
+        "spec_version": __spec_version__,
+    }
+
+
+@mcp.tool()
+def get_version_info() -> dict[str, str]:
+    """Get eqsl-mcp service version and upstream eQSL.cc endpoint version.
+
+    Returns the running PyPI version of eqsl-mcp and the eQSL.cc endpoint
+    contract in use. Use this to confirm fleet alignment across MCP
+    deployments — agents can compare service_version and spec_version
+    across servers to detect drift without going outside the MCP protocol.
+
+    Returns:
+        service_name, service_version (PyPI), and spec_version (eQSL.cc endpoint).
+    """
+    return _version_info_payload()
 
 
 @mcp.tool()
