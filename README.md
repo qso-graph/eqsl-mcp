@@ -20,6 +20,7 @@ pip install eqsl-mcp
 | `eqsl_ag_check` | No | Check if a callsign has AG (Authenticity Guaranteed) status |
 | `eqsl_download` | Yes | Download eQSL card images |
 | `eqsl_last_upload` | No | When did a persona last upload to eQSL |
+| `get_version_info` | No | Service version + upstream eQSL.cc endpoint version (fleet identity attestation) |
 
 ## Quick Start
 
