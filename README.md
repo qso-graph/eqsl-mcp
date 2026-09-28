@@ -11,7 +11,8 @@ Part of the [qso-graph](https://qso-graph.io/) project. Uses [qso-graph-auth](ht
 ## Install
 
 ```bash
-pip install eqsl-mcp
+uvx eqsl-mcp            # run it; nothing to install
+pip install eqsl-mcp    # or install it into your own environment
 ```
 
 ## Tools
@@ -33,7 +34,7 @@ eqsl-mcp uses qso-graph-auth personas for credential management:
 
 ```bash
 # Install qso-graph-auth if you haven't
-pip install qso-graph-auth
+uv tool install qso-graph-auth
 
 # Create a persona and add eQSL credentials
 qso-auth persona create ki7mt --callsign KI7MT
@@ -53,7 +54,8 @@ Add to `claude_desktop_config.json` (`~/Library/Application Support/Claude/` on 
 {
   "mcpServers": {
     "eqsl": {
-      "command": "eqsl-mcp"
+      "command": "uvx",
+      "args": ["eqsl-mcp"]
     }
   }
 }
@@ -67,7 +69,8 @@ Add to `.claude/settings.json`:
 {
   "mcpServers": {
     "eqsl": {
-      "command": "eqsl-mcp"
+      "command": "uvx",
+      "args": ["eqsl-mcp"]
     }
   }
 }
@@ -81,7 +84,8 @@ ChatGPT supports MCP via the [OpenAI Agents SDK](https://developers.openai.com/a
 {
   "mcpServers": {
     "eqsl": {
-      "command": "eqsl-mcp"
+      "command": "uvx",
+      "args": ["eqsl-mcp"]
     }
   }
 }
@@ -95,7 +99,8 @@ Add to `.cursor/mcp.json` (project-level) or `~/.cursor/mcp.json` (global):
 {
   "mcpServers": {
     "eqsl": {
-      "command": "eqsl-mcp"
+      "command": "uvx",
+      "args": ["eqsl-mcp"]
     }
   }
 }
@@ -109,7 +114,8 @@ Add to `.vscode/mcp.json` in your workspace:
 {
   "servers": {
     "eqsl": {
-      "command": "eqsl-mcp"
+      "command": "uvx",
+      "args": ["eqsl-mcp"]
     }
   }
 }
@@ -123,11 +129,14 @@ Add to `~/.gemini/settings.json` (global) or `.gemini/settings.json` (project):
 {
   "mcpServers": {
     "eqsl": {
-      "command": "eqsl-mcp"
+      "command": "uvx",
+      "args": ["eqsl-mcp"]
     }
   }
 }
 ```
+
+Installed with pip instead? Use `"command": "eqsl-mcp"` in any config above.
 
 ### 3. Ask questions
 
@@ -168,7 +177,8 @@ Then open the MCP Inspector at `http://localhost:8001`.
 ```bash
 git clone https://github.com/qso-graph/eqsl-mcp.git
 cd eqsl-mcp
-pip install -e .
+uv sync --group dev
+uv run pytest
 ```
 
 ## Date Formats
