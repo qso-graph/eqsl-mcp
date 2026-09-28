@@ -36,6 +36,10 @@ Issues = "https://github.com/qso-graph/eqsl-mcp/issues"
 [project.scripts]
 eqsl-mcp = "eqsl_mcp.server:main"
 
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
