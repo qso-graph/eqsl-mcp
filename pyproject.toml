@@ -1,6 +1,6 @@
 [project]
 name = "eqsl-mcp"
-version = "0.3.4"
+version = "0.3.5"
 description = "MCP server for eQSL.cc — inbox download, QSO verification, AG status checks"
 readme = "README.md"
 license = {text = "GPL-3.0-or-later"}
