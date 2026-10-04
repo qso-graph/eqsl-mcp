@@ -21,7 +21,7 @@ uvx eqsl-mcp            # run it; nothing to install
 | `eqsl_inbox` | Yes | Download incoming eQSLs with date/confirmation filters |
 | `eqsl_verify` | No | Check if a specific QSO exists in eQSL |
 | `eqsl_ag_check` | No | Check if a callsign has AG (Authenticity Guaranteed) status |
-| `eqsl_download` | Yes | Download eQSL card images |
+| `eqsl_download` | Yes | Download your eQSL inbox as raw ADIF, to import into your logger |
 | `eqsl_last_upload` | No | When did a persona last upload to eQSL |
 | `get_version_info` | No | Service version + upstream eQSL.cc endpoint version (fleet identity attestation) |
 
@@ -29,17 +29,19 @@ uvx eqsl-mcp            # run it; nothing to install
 
 ### 1. Set up credentials
 
-eqsl-mcp uses qso-graph-auth personas for credential management:
+eqsl-mcp uses [qso-graph-auth](https://qso-graph.io/servers/qso-graph-auth/) personas for credential management:
 
 ```bash
 # Install qso-graph-auth if you haven't
 uv tool install qso-graph-auth
 
-# Create a persona and add eQSL credentials
-qso-auth persona create ki7mt --callsign KI7MT
-qso-auth persona provider ki7mt eqsl --username KI7MT
-qso-auth persona secret ki7mt eqsl
+# A persona (your callsign and the dates it covers), then eQSL for it
+qso-auth persona add --name ki7mt --callsign KI7MT --start 2020-01-01
+qso-auth provider enable ki7mt eqsl
+qso-auth creds set ki7mt eqsl      # asks for your username, then your password (hidden)
 ```
+
+All three steps are needed: without `provider enable`, the server reports that the persona has no `eqsl` ref.
 
 ### 2. Configure your MCP client
 
@@ -190,6 +192,11 @@ eQSL uses different date formats across endpoints. eqsl-mcp normalizes everythin
 ## Mode Matching
 
 eQSL requires exact mode matching. `SSB` won't match `USB`/`LSB`. `PSK` won't match `PSK31`. Use the exact mode logged by the other station.
+
+## Known Quirks
+
+- **AG list cache:** the Authenticity Guaranteed member list is cached for 4 hours (eQSL updates it about six times a day), in `~/.cache/eqsl-mcp/ag_members.txt` (`$XDG_CACHE_HOME` if set; `%LOCALAPPDATA%\eqsl-mcp\` on Windows).
+- **Inbox download:** eQSL returns an HTML page that links to the `.adi` file, so the inbox is fetched in two steps. If eQSL answers with ADIF directly, that is used as is.
 
 ## License
 
