@@ -29,7 +29,7 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://qso-graph.io"
-Documentation = "https://qso-graph.io"
+Documentation = "https://qso-graph.io/servers/eqsl/"
 Repository = "https://github.com/qso-graph/eqsl-mcp"
 Issues = "https://github.com/qso-graph/eqsl-mcp/issues"
 
