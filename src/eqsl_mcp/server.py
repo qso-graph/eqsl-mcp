@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import sys
+from typing import Any
 
 from fastmcp import FastMCP
-
 from qso_graph_auth.identity import PersonaManager
 from qso_graph_auth.identity.errors import CredentialError
 
@@ -61,7 +61,7 @@ def eqsl_inbox(
     confirmed_only: bool = False,
     unconfirmed_only: bool = False,
     qth_nickname: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Download incoming eQSLs (confirmations others have sent you).
 
     Args:
@@ -110,7 +110,7 @@ def eqsl_verify(
     band: str,
     qso_date: str,
     mode: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Check if a specific QSO exists in eQSL (public, no auth required).
 
     Args:
@@ -127,7 +127,7 @@ def eqsl_verify(
 
 
 @mcp.tool()
-def eqsl_ag_check(callsign: str) -> dict:
+def eqsl_ag_check(callsign: str) -> dict[str, Any]:
     """Check if a callsign has Authenticity Guaranteed (AG) status on eQSL.
 
     Public, no auth required. Uses a cached copy of the AG member list
@@ -151,7 +151,7 @@ def eqsl_download(
     persona: str,
     since: str | None = None,
     qth_nickname: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Download your complete eQSL inbox as raw ADIF text.
 
     Returns the .adi file content — save to disk for import into your logger.
@@ -172,7 +172,7 @@ def eqsl_download(
 
 
 @mcp.tool()
-def eqsl_last_upload(persona: str) -> dict:
+def eqsl_last_upload(persona: str) -> dict[str, Any]:
     """Check when a persona last uploaded QSOs to eQSL.
 
     Args:
@@ -202,8 +202,10 @@ def main() -> None:
         if arg == "--port" and i < len(sys.argv) - 1:
             port = int(sys.argv[i + 1])
 
+    # Written out rather than passed through: fastmcp takes a literal, and a
+    # str that happens to hold the right word is not the same thing.
     if transport == "streamable-http":
-        mcp.run(transport=transport, port=port)
+        mcp.run(transport="streamable-http", port=port)
     else:
         mcp.run(transport="stdio")
 
