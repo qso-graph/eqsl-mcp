@@ -6,6 +6,7 @@ import sys
 from typing import Any
 
 from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
 from qso_graph_auth.identity import PersonaManager
 from qso_graph_auth.identity.errors import CredentialError
 
@@ -28,6 +29,31 @@ def _pm() -> PersonaManager:
 # Tools
 # ---------------------------------------------------------------------------
 
+# MCP 2026-07-28 tool annotations. The defaults are pessimistic — a tool that
+# declares nothing is advertised as destructive, non-idempotent and open-world,
+# and the specification tells a client to keep a human in the loop for an
+# operation like that. Every tool here reads: nothing is uploaded to eQSL and
+# no credential is written, only read from the keyring.
+#
+# openWorldHint is true for the five that reach eqsl.cc — three with the
+# operator's credentials, two on public endpoints (QSO verification and the AG
+# member list) — and false for get_version_info. They are a client's UX hint
+# and never a security control.
+_READS_EQSL = {
+    "readOnlyHint": True,
+    "destructiveHint": False,
+    "idempotentHint": True,
+    "openWorldHint": True,
+}
+_ANSWERS_FROM_THE_PACKAGE = {
+    "readOnlyHint": True,
+    "destructiveHint": False,
+    "idempotentHint": True,
+    "openWorldHint": False,
+}
+
+
+
 
 def _version_info_payload() -> dict[str, str]:
     """Build the version info envelope. Pulled into a helper so tests can
@@ -39,7 +65,7 @@ def _version_info_payload() -> dict[str, str]:
     }
 
 
-@mcp.tool()
+@mcp.tool(annotations=_ANSWERS_FROM_THE_PACKAGE)
 def get_version_info() -> dict[str, str]:
     """Get eqsl-mcp service version and upstream eQSL.cc endpoint version.
 
@@ -54,7 +80,7 @@ def get_version_info() -> dict[str, str]:
     return _version_info_payload()
 
 
-@mcp.tool()
+@mcp.tool(annotations=_READS_EQSL)
 def eqsl_inbox(
     persona: str,
     since: str | None = None,
@@ -77,7 +103,7 @@ def eqsl_inbox(
     try:
         result = download_inbox(_pm(), persona, since=since, qth_nickname=qth_nickname)
     except CredentialError as e:
-        return {"error": str(e)}
+        raise ToolError(str(e)) from e
 
     records = result.records
 
@@ -103,7 +129,7 @@ def eqsl_inbox(
     }
 
 
-@mcp.tool()
+@mcp.tool(annotations=_READS_EQSL)
 def eqsl_verify(
     from_call: str,
     to_call: str,
@@ -126,7 +152,7 @@ def eqsl_verify(
     return verify_qso(from_call, to_call, band, qso_date, mode)
 
 
-@mcp.tool()
+@mcp.tool(annotations=_READS_EQSL)
 def eqsl_ag_check(callsign: str) -> dict[str, Any]:
     """Check if a callsign has Authenticity Guaranteed (AG) status on eQSL.
 
@@ -143,10 +169,10 @@ def eqsl_ag_check(callsign: str) -> dict[str, Any]:
         ag = is_ag(callsign)
         return {"callsign": callsign.upper(), "ag": ag}
     except Exception as e:
-        return {"callsign": callsign.upper(), "ag": None, "error": str(e)}
+        raise ToolError(str(e)) from e
 
 
-@mcp.tool()
+@mcp.tool(annotations=_READS_EQSL)
 def eqsl_download(
     persona: str,
     since: str | None = None,
@@ -168,10 +194,10 @@ def eqsl_download(
     try:
         return download_adif(_pm(), persona, since=since, qth_nickname=qth_nickname)
     except CredentialError as e:
-        return {"error": str(e)}
+        raise ToolError(str(e)) from e
 
 
-@mcp.tool()
+@mcp.tool(annotations=_READS_EQSL)
 def eqsl_last_upload(persona: str) -> dict[str, Any]:
     """Check when a persona last uploaded QSOs to eQSL.
 
@@ -184,7 +210,7 @@ def eqsl_last_upload(persona: str) -> dict[str, Any]:
     try:
         return last_upload_date(_pm(), persona)
     except CredentialError as e:
-        return {"error": str(e)}
+        raise ToolError(str(e)) from e
 
 
 # ---------------------------------------------------------------------------
