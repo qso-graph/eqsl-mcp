@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **`certifi` is carried, and both fetch paths verify against it** (#21, qso-graph-devel#73). They
+  used `urllib` with no context, so they trusted whichever root store the running Python was built
+  against. On macOS that is `/etc/ssl/cert.pem`, a deliberately *reduced* OpenSSL file — 128 roots
+  against the system keychain's 158, and current rather than stale. **eqsl.cc verifies fine against
+  it today**, so this was latent rather than an outage.
+- **It matters most on the credentialed path:** eQSL's query interface puts the operator's password
+  in the query string, so `ssl.CERT_NONE` there would mean handing the password to whoever
+  presented a certificate. That is why verification is never disabled, rather than merely why it
+  should not be.
+- The context lives in its own module, `_tls.py`, because the calls are in two files — `client.py`
+  and `ag_cache.py` — and the "every `urlopen` verifies" check scans the whole package. A check
+  reading one file would have left the other unverified, and which one is worse depends only on
+  which file it happened to read.
+- **`tests/test_release_gate.py`** asserts the gate suite imports nothing but the standard library
+  and pytest. solar-mcp's 0.3.0 publish failed on exactly that, from the same change.
+
 - **Credential failures are flagged `isError`** (#23). Three tools caught `CredentialError` and
   returned `{"error": "..."}`, which reaches a client as a *successful* call whose payload happens
   to contain the word "error". They now raise `ToolError`. **No decision changed — only how it is
