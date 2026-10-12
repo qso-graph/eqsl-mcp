@@ -5,6 +5,29 @@ All notable changes to `eqsl-mcp` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- **Credential failures are flagged `isError`** (#23). Three tools caught `CredentialError` and
+  returned `{"error": "..."}`, which reaches a client as a *successful* call whose payload happens
+  to contain the word "error". They now raise `ToolError`. **No decision changed — only how it is
+  reported.**
+- **Measured while doing it: this server was already half-right, by accident.** Its tools caught
+  *only* `CredentialError`, so every other failure — a network error, eQSL refusing — propagated
+  uncaught, and `fastmcp` already reported those as `isError` with the message intact. That
+  behaviour was being relied on with nothing asserting it, so a later tidy-up adding a blanket
+  `except Exception: return {...}` would have silently undone it. It is now pinned by a test, which
+  also refuses any `{"error": ...}` return creeping back into `server.py`.
+- **Fixed: eQSL's own response body could carry the password into the message.** `last_upload_date`
+  stripped the tags off whatever eQSL returned and handed that back, and this server's requests put
+  the password in the query string. **Measured, not assumed:** given a body echoing the request the
+  secret came straight through. That text is now withheld, with a reason, when it carries the
+  secret or anything URL-shaped, and capped — while an ordinary `Invalid user name` still reaches
+  the caller. Same shape as the fix in `lotw-mcp`.
+- **Every tool declares all four annotation hints** (#23). All six are read-only, non-destructive
+  and idempotent; `openWorldHint` is true for the five that reach eqsl.cc — three with the
+  operator's credentials, two on public endpoints — and false for `get_version_info`.
+- **`tests/test_mcp_conformance.py`** asserts all of the above.
+
 ## [0.3.8] — 2026-10-11
 
 - **ruff and mypy run in CI** (qso-graph-devel#66), as a job the `ci-all-green` gate requires.

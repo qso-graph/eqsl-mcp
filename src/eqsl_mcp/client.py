@@ -30,6 +30,30 @@ def _is_mock() -> bool:
     return os.getenv("EQSL_MCP_MOCK") == "1"
 
 
+def _safe_error(text: str, secret: str | None) -> str:
+    """eQSL's own message, or a fixed one when it cannot be shown safely.
+
+    ``last_upload_date`` strips the tags off eQSL's response and returns what is
+    left. That body is eQSL's, not ours, and this server's requests put the
+    password in the query string — so a page echoing the request puts the
+    password into the message. Measured, not assumed: given such a body the
+    sentinel came straight through.
+
+    Until #23 that landed in a payload; it is now the error text a client
+    reads. So the text is passed on only when it carries neither the secret nor
+    anything URL-shaped, and is capped. It is deliberately *not* scrubbed and
+    handed over: a body containing the password is a surprise worth reporting
+    as one rather than editing quietly.
+
+    Follows lotw-mcp, which has the same shape of hazard for the same reason.
+    """
+    if secret and secret in text:
+        return "eQSL returned a response that echoed the request; not shown"
+    if "://" in text:
+        return "eQSL returned a response containing a URL; not shown"
+    return text[:200]
+
+
 def _get(url: str, query: dict[str, Any] | None = None,
          timeout: float = 30.0) -> tuple[int, str]:
     """HTTP GET, return (status, text).
@@ -185,10 +209,13 @@ def last_upload_date(pm: PersonaManager, persona: str) -> dict[str, Any]:
     }
     status, body = _get(f"{_BASE}/qslcard/DisplayLastUploadDate.cfm", query)
     if status != 200:
-        return {"persona": persona, "last_upload": None, "error": f"HTTP {status}"}
+        raise RuntimeError(f"eQSL returned HTTP {status}")
 
     # Response is HTML-wrapped — strip tags and extract text content
     text = re.sub(r"<[^>]+>", "", body).strip()
     if not text or "error" in text.lower():
-        return {"persona": persona, "last_upload": None, "error": text or "Unknown error"}
+        # Built first and raised second, so the raise interpolates only a value
+        # already checked safe to show.
+        message = _safe_error(text, password) if text else "Unknown error"
+        raise RuntimeError(f"eQSL: {message}")
     return {"persona": persona, "last_upload": text}
