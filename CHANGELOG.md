@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **`E501` is adopted** (#22, qso-graph-devel#70). It reported **nothing** — this source was
+  already within 95 columns, so adoption was the config change alone with no reflow, and the repo
+  carries no `noqa`. That the rule is enforced rather than inert was checked rather than assumed: a
+  planted 117-character line is reported, and removed again the tree is clean.
+
 - **`certifi` is carried, and both fetch paths verify against it** (#21, qso-graph-devel#73). They
   used `urllib` with no context, so they trusted whichever root store the running Python was built
   against. On macOS that is `/etc/ssl/cert.pem`, a deliberately *reduced* OpenSSL file — 128 roots
