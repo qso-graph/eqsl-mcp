@@ -5,6 +5,61 @@ All notable changes to `eqsl-mcp` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] — 2026-10-12
+
+**Upgrading:** a credential failure now returns `isError: true` instead of a successful result whose
+payload contained an `error` key. Anything reading `result["error"]` should read the error flag.
+Other failures — a network error, eQSL refusing — already reached a client as errors and are
+unchanged.
+
+**Security-relevant:** eQSL's own response body was returned as the error text, and this server's
+requests put the password in the query string. A body echoing the request used to carry the
+password into the message. That text is now withheld, with a reason, when it contains the secret or
+any URL.
+
+
+- **`E501` is adopted** (#22, qso-graph-devel#70). It reported **nothing** — this source was
+  already within 95 columns, so adoption was the config change alone with no reflow, and the repo
+  carries no `noqa`. That the rule is enforced rather than inert was checked rather than assumed: a
+  planted 117-character line is reported, and removed again the tree is clean.
+
+- **`certifi` is carried, and both fetch paths verify against it** (#21, qso-graph-devel#73). They
+  used `urllib` with no context, so they trusted whichever root store the running Python was built
+  against. On macOS that is `/etc/ssl/cert.pem`, a deliberately *reduced* OpenSSL file — 128 roots
+  against the system keychain's 158, and current rather than stale. **eqsl.cc verifies fine against
+  it today**, so this was latent rather than an outage.
+- **It matters most on the credentialed path:** eQSL's query interface puts the operator's password
+  in the query string, so `ssl.CERT_NONE` there would mean handing the password to whoever
+  presented a certificate. That is why verification is never disabled, rather than merely why it
+  should not be.
+- The context lives in its own module, `_tls.py`, because the calls are in two files — `client.py`
+  and `ag_cache.py` — and the "every `urlopen` verifies" check scans the whole package. A check
+  reading one file would have left the other unverified, and which one is worse depends only on
+  which file it happened to read.
+- **`tests/test_release_gate.py`** asserts the gate suite imports nothing but the standard library
+  and pytest. solar-mcp's 0.3.0 publish failed on exactly that, from the same change.
+
+- **Credential failures are flagged `isError`** (#23). Three tools caught `CredentialError` and
+  returned `{"error": "..."}`, which reaches a client as a *successful* call whose payload happens
+  to contain the word "error". They now raise `ToolError`. **No decision changed — only how it is
+  reported.**
+- **Measured while doing it: this server was already half-right, by accident.** Its tools caught
+  *only* `CredentialError`, so every other failure — a network error, eQSL refusing — propagated
+  uncaught, and `fastmcp` already reported those as `isError` with the message intact. That
+  behaviour was being relied on with nothing asserting it, so a later tidy-up adding a blanket
+  `except Exception: return {...}` would have silently undone it. It is now pinned by a test, which
+  also refuses any `{"error": ...}` return creeping back into `server.py`.
+- **Fixed: eQSL's own response body could carry the password into the message.** `last_upload_date`
+  stripped the tags off whatever eQSL returned and handed that back, and this server's requests put
+  the password in the query string. **Measured, not assumed:** given a body echoing the request the
+  secret came straight through. That text is now withheld, with a reason, when it carries the
+  secret or anything URL-shaped, and capped — while an ordinary `Invalid user name` still reaches
+  the caller. Same shape as the fix in `lotw-mcp`.
+- **Every tool declares all four annotation hints** (#23). All six are read-only, non-destructive
+  and idempotent; `openWorldHint` is true for the five that reach eqsl.cc — three with the
+  operator's credentials, two on public endpoints — and false for `get_version_info`.
+- **`tests/test_mcp_conformance.py`** asserts all of the above.
+
 ## [0.3.8] — 2026-10-11
 
 - **ruff and mypy run in CI** (qso-graph-devel#66), as a job the `ci-all-green` gate requires.
