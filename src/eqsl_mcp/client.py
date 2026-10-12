@@ -10,6 +10,7 @@ from typing import Any
 
 from qso_graph_auth.identity import PersonaManager
 
+from . import _tls
 from .parser import FetchResult, parse_adif, to_mmddyyyy, to_qso, to_yyyymmddhhmm
 
 _BASE = "https://www.eqsl.cc"
@@ -66,7 +67,7 @@ def _get(url: str, query: dict[str, Any] | None = None,
         url = f"{url}?{qs}"
     req = urllib.request.Request(url, method="GET")
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with urllib.request.urlopen(req, timeout=timeout, context=_tls.context()) as resp:
             return resp.status, resp.read().decode("utf-8", errors="replace")
     except Exception:
         raise RuntimeError("eQSL request failed — check network and credentials")
