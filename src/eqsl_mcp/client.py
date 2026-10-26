@@ -10,7 +10,7 @@ from typing import Any
 
 from qso_graph_auth.identity import PersonaManager
 
-from . import _tls
+from . import __version__, _tls, ratelimit
 from .parser import FetchResult, parse_adif, to_mmddyyyy, to_qso, to_yyyymmddhhmm
 
 _BASE = "https://www.eqsl.cc"
@@ -66,6 +66,11 @@ def _get(url: str, query: dict[str, Any] | None = None,
         qs = urllib.parse.urlencode(query, doseq=True)
         url = f"{url}?{qs}"
     req = urllib.request.Request(url, method="GET")
+    # Identify this server to eQSL. It sent no User-Agent at all before
+    # 2026-10-26, so its requests were indistinguishable from any other script's
+    # and eQSL had no way to tell who was asking or ask us to ease off.
+    req.add_header("User-Agent", f"eqsl-mcp/{__version__} (+https://qso-graph.io)")
+    ratelimit.wait()
     try:
         with urllib.request.urlopen(req, timeout=timeout, context=_tls.context()) as resp:
             return resp.status, resp.read().decode("utf-8", errors="replace")

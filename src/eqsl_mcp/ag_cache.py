@@ -6,7 +6,7 @@ import os
 import time
 import urllib.request
 
-from . import _tls
+from . import __version__, _tls, ratelimit
 
 _AG_URL = "https://www.eqsl.cc/qslcard/DownloadedFiles/AGMemberList.txt"
 _CACHE_TTL = 4 * 3600  # 4 hours — list updated ~6x daily
@@ -35,6 +35,8 @@ def _download_ag_list() -> set[str]:
     """Fetch the AG member list from eQSL and cache it."""
     path = _cache_path()
     req = urllib.request.Request(_AG_URL, method="GET")
+    req.add_header("User-Agent", f"eqsl-mcp/{__version__} (+https://qso-graph.io)")
+    ratelimit.wait()
     with urllib.request.urlopen(req, timeout=30, context=_tls.context()) as resp:
         data = resp.read().decode("utf-8", errors="replace")
     with open(path, "w", encoding="utf-8") as f:
