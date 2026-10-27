@@ -71,8 +71,8 @@ def _get(url: str, query: dict[str, Any] | None = None,
     # 2026-10-26, so its requests were indistinguishable from any other script's
     # and eQSL had no way to tell who was asking or ask us to ease off.
     req.add_header("User-Agent", f"eqsl-mcp/{__version__} (+https://qso-graph.io)")
-    ratelimit.wait()
     try:
+        ratelimit.wait(url)
         with urllib.request.urlopen(req, timeout=timeout, context=_tls.context()) as resp:
             return resp.status, resp.read().decode("utf-8", errors="replace")
     except urllib.error.HTTPError as exc:
@@ -84,7 +84,7 @@ def _get(url: str, query: dict[str, Any] | None = None,
         # outage and falls through.
         if exc.code == 429 or (exc.code == 503 and exc.headers.get("Retry-After")):
             raise ratelimit.RateLimited(
-                ratelimit.block(exc.headers.get("Retry-After"))
+                ratelimit.block(url, exc.headers.get("Retry-After"))
             ) from None
         raise RuntimeError("eQSL request failed — check network and credentials") from None
     except ratelimit.RateLimited:

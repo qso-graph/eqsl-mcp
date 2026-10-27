@@ -37,7 +37,7 @@ def _download_ag_list() -> set[str]:
     path = _cache_path()
     req = urllib.request.Request(_AG_URL, method="GET")
     req.add_header("User-Agent", f"eqsl-mcp/{__version__} (+https://qso-graph.io)")
-    ratelimit.wait()
+    ratelimit.wait(_AG_URL)
     try:
         with urllib.request.urlopen(req, timeout=30, context=_tls.context()) as resp:
             data = resp.read().decode("utf-8", errors="replace")
@@ -47,7 +47,7 @@ def _download_ag_list() -> set[str]:
         # client.py -- the limit is eQSL's view of us, not of one URL.
         if exc.code == 429 or (exc.code == 503 and exc.headers.get("Retry-After")):
             raise ratelimit.RateLimited(
-                ratelimit.block(exc.headers.get("Retry-After"))
+                ratelimit.block(_AG_URL, exc.headers.get("Retry-After"))
             ) from None
         raise
     with open(path, "w", encoding="utf-8") as f:

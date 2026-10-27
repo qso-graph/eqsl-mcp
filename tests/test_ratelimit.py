@@ -1,6 +1,11 @@
-"""The server spaces its requests to eQSL.cc.
+"""The server spaces its requests to eQSL, and honours a 429.
 
-Asserting it because a convention nobody asserts drifts -- which is how
+Three mechanisms, asserted separately because they were once conflated: the gap
+between two requests to one host, how stale a cached answer may be (in the
+client), and the interval a provider asks us to wait after a 429. See
+qso-graph-devel/planning/MCP-SECURITY-FRAMEWORK.md.
+
+Asserting them because a convention nobody asserts drifts -- which is how
 get_version_info drifted across this fleet.
 """
 
@@ -11,6 +16,9 @@ import time
 import pytest
 
 from eqsl_mcp import ratelimit
+
+_A = "https://www.eqsl.cc/qslcard/DownloadInBox.cfm"
+_B = "https://www.eqsl.cc/qslcard/DownloadedFiles/AGMemberList.txt"
 
 
 @pytest.fixture(autouse=True)
@@ -23,14 +31,17 @@ def _clean() -> None:
     ratelimit.clear()
 
 
+# --- spacing ---------------------------------------------------------------
+
+
 def test_min_interval_is_declared_and_positive():
     assert ratelimit.MIN_INTERVAL > 0
 
 
 def test_consecutive_calls_are_spaced():
-    ratelimit.wait()                      # establish the baseline
+    ratelimit.wait(_A)                    # establish the baseline
     start = time.monotonic()
-    ratelimit.wait()
+    ratelimit.wait(_A)
     elapsed = time.monotonic() - start
     # Allow a little slack for a slow scheduler, but it must actually wait.
     assert elapsed >= ratelimit.MIN_INTERVAL * 0.8, (
@@ -40,19 +51,39 @@ def test_consecutive_calls_are_spaced():
 
 
 def test_a_gap_longer_than_the_interval_is_not_padded():
-    ratelimit.wait()
+    ratelimit.wait(_A)
     time.sleep(ratelimit.MIN_INTERVAL * 1.2)
     start = time.monotonic()
-    ratelimit.wait()
+    ratelimit.wait(_A)
     # Nothing to wait for: the gap already passed.
     assert time.monotonic() - start < ratelimit.MIN_INTERVAL * 0.5
 
 
+def test_spacing_is_per_host():
+    """One provider's gap must not delay a call to a different provider."""
+    ratelimit.wait(_A)
+    start = time.monotonic()
+    ratelimit.wait(_B)
+    if ratelimit.host_of(_A) == ratelimit.host_of(_B):
+        pytest.skip("this server reads a single host")
+    assert time.monotonic() - start < ratelimit.MIN_INTERVAL * 0.5
+
+
+def test_host_of_reads_the_host():
+    assert ratelimit.host_of("https://example.org/a/b?c=d") == "example.org"
+    assert ratelimit.host_of("not a url") == ""
+
+
+def test_an_unparseable_url_is_still_limited():
+    """It shares the "" bucket rather than escaping the limits: the failure to
+    avoid is sending the request, not mis-labelling it."""
+    ratelimit.wait("garbage")
+    start = time.monotonic()
+    ratelimit.wait("garbage")
+    assert time.monotonic() - start >= ratelimit.MIN_INTERVAL * 0.8
+
+
 # --- what a 429 does -------------------------------------------------------
-#
-# Separate from spacing above, deliberately: a gap between requests and an
-# interval eQSL asked us to wait are different mechanisms, and reading
-# one as the other is what this module's comments exist to prevent.
 
 
 def test_backoff_bounds_are_declared():
@@ -78,30 +109,49 @@ def test_retry_after_is_honoured_within_bounds(header, expected):
 
 def test_a_block_refuses_the_next_request_without_sleeping():
     """The contract: refuse quickly and say when, never sleep out the wait."""
-    waited = ratelimit.block("300")
+    waited = ratelimit.block(_A, "300")
     assert waited == 300.0
     start = time.monotonic()
     with pytest.raises(ratelimit.RateLimited) as e:
-        ratelimit.wait()
+        ratelimit.wait(_A)
     assert time.monotonic() - start < 1.0, "wait() slept through the backoff"
     assert e.value.retry_after <= 300
-    assert "300" in str(e.value) or str(e.value.retry_after) in str(e.value)
+    assert str(e.value.retry_after) in str(e.value)
 
 
-def test_the_block_covers_every_caller():
-    """A limit is eQSL's view of this client, not of one endpoint."""
-    ratelimit.block("120")
-    for _ in range(3):
+def test_a_block_covers_every_path_on_that_host():
+    """A limit is the provider's view of this client, not of one URL."""
+    ratelimit.block(_A, "120")
+    for suffix in ("", "/other", "?q=1"):
         with pytest.raises(ratelimit.RateLimited):
-            ratelimit.wait()
+            ratelimit.wait(_A + suffix)
 
 
-def test_clearing_the_block_lets_requests_resume():
-    ratelimit.block("120")
+def test_a_block_does_not_touch_another_host():
+    """The reason state is keyed by host: a 429 from one service must not
+    silence a different, healthy one for an hour."""
+    if ratelimit.host_of(_A) == ratelimit.host_of(_B):
+        pytest.skip("this server reads a single host")
+    ratelimit.block(_A, "300")
     with pytest.raises(ratelimit.RateLimited):
-        ratelimit.wait()
+        ratelimit.wait(_A)
+    ratelimit.wait(_B)  # must not raise
+
+
+def test_the_error_names_the_host_that_limited_us():
+    ratelimit.block(_A, "120")
+    with pytest.raises(ratelimit.RateLimited) as e:
+        ratelimit.wait(_A)
+    assert e.value.host == ratelimit.host_of(_A)
+    assert ratelimit.host_of(_A) in str(e.value)
+
+
+def test_clearing_lets_requests_resume():
+    ratelimit.block(_A, "120")
+    with pytest.raises(ratelimit.RateLimited):
+        ratelimit.wait(_A)
     ratelimit.clear()
-    ratelimit.wait()  # must not raise
+    ratelimit.wait(_A)  # must not raise
 
 
 def test_rate_limited_is_a_runtime_error():
@@ -112,48 +162,51 @@ def test_rate_limited_is_a_runtime_error():
 
 # --- the wiring ------------------------------------------------------------
 #
-# The module above is only useful if the fetch paths actually consult it. eQSL
-# has two, in client.py and ag_cache.py, and they share the block: a limit is
-# eQSL's view of this client, not of one URL.
+# The module above is only useful if the fetch paths actually consult it. These
+# assert the join, which is where the earlier version failed: the provider's
+# limit was ignored not because nothing could parse Retry-After but because
+# nothing looked.
 
 
-def _http_error(code: int, **headers: str):
+def _http_error(url: str, code: int, **headers: str):
     import urllib.error
     from email.message import Message
 
     m = Message()
     for k, v in headers.items():
         m[k.replace("_", "-")] = v
-    return urllib.error.HTTPError(
-        "https://www.eqsl.cc/qslcard/DownloadInBox.cfm", code, "nope", m, None
-    )
+    return urllib.error.HTTPError(url, code, "nope", m, None)
+
+
+def _raises(exc):
+    def f(*a: object, **k: object):
+        raise exc
+    return f
 
 
 def test_a_429_from_eqsl_arms_the_block(monkeypatch):
     from eqsl_mcp import client as c
 
     monkeypatch.setattr(
-        c.urllib.request,
-        "urlopen",
-        lambda *a, **k: (_ for _ in ()).throw(_http_error(429, Retry_After="120")),
+        c.urllib.request, "urlopen", _raises(_http_error(_A, 429, Retry_After="120"))
     )
     with pytest.raises(ratelimit.RateLimited) as e:
-        c._get("https://www.eqsl.cc/qslcard/DownloadInBox.cfm")
+        c._get(_A)
     assert e.value.retry_after == 120
 
     sent: list[str] = []
     monkeypatch.setattr(c.urllib.request, "urlopen", lambda *a, **k: sent.append("x"))
     with pytest.raises(ratelimit.RateLimited):
-        c._get("https://www.eqsl.cc/qslcard/DownloadInBox.cfm")
+        c._get(_A)
     assert sent == [], "a request was sent while eQSL had told us to stop"
 
 
 def test_the_ag_list_shares_the_block(monkeypatch):
-    """Two fetch paths, one provider: a 429 on either stops both."""
+    """Both fetch paths reach the same host, so a 429 on either stops both."""
     from eqsl_mcp import ag_cache
     from eqsl_mcp import client as c
 
-    ratelimit.block("120")
+    ratelimit.block(_A, "120")
     monkeypatch.setattr(
         ag_cache.urllib.request, "urlopen", lambda *a, **k: pytest.fail("sent")
     )
@@ -161,7 +214,7 @@ def test_the_ag_list_shares_the_block(monkeypatch):
         ag_cache._download_ag_list()
     monkeypatch.setattr(c.urllib.request, "urlopen", lambda *a, **k: pytest.fail("sent"))
     with pytest.raises(ratelimit.RateLimited):
-        c._get("https://www.eqsl.cc/qslcard/DownloadInBox.cfm")
+        c._get(_A)
 
 
 def test_a_429_is_not_reported_as_a_credentials_problem(monkeypatch):
@@ -170,28 +223,20 @@ def test_a_429_is_not_reported_as_a_credentials_problem(monkeypatch):
     from eqsl_mcp import client as c
 
     monkeypatch.setattr(
-        c.urllib.request,
-        "urlopen",
-        lambda *a, **k: (_ for _ in ()).throw(_http_error(429, Retry_After="90")),
+        c.urllib.request, "urlopen", _raises(_http_error(_A, 429, Retry_After="90"))
     )
     with pytest.raises(RuntimeError) as e:
-        c._get("https://www.eqsl.cc/qslcard/DownloadInBox.cfm")
+        c._get(_A)
     assert "credentials" not in str(e.value).lower()
     assert "rate limiting" in str(e.value)
 
 
-def test_a_500_still_leaks_neither_password_nor_url(monkeypatch):
+def test_a_500_leaks_neither_password_nor_url(monkeypatch):
     from eqsl_mcp import client as c
 
-    monkeypatch.setattr(
-        c.urllib.request,
-        "urlopen",
-        lambda *a, **k: (_ for _ in ()).throw(_http_error(500)),
-    )
+    monkeypatch.setattr(c.urllib.request, "urlopen", _raises(_http_error(_A, 500)))
     with pytest.raises(RuntimeError) as e:
-        c._get(
-            "https://www.eqsl.cc/qslcard/DownloadInBox.cfm",
-            {"UserName": "KI7MT", "Password": "SECRET"},
-        )
+        c._get(_A, {"UserName": "KI7MT", "Password": "SECRET"})
     assert "SECRET" not in str(e.value)
     assert "eqsl.cc" not in str(e.value)
+    assert not isinstance(e.value, ratelimit.RateLimited)
