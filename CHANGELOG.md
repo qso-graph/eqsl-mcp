@@ -5,6 +5,39 @@ All notable changes to `eqsl-mcp` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **A `429` from eQSL is now honoured.** eQSL asking this client to stop is the
+  most explicit form a request limit takes, and it was previously invisible:
+  every failure became "eQSL request failed — check network and credentials", so
+  a rate limit read as a wrong password. Now the `Retry-After` interval is read
+  and bounded to between a minute and an hour, no further request goes out until
+  it has passed, and the tool says how long to wait rather than sleeping through
+  it. The AG-list download shares that block — the limit is eQSL's view of this
+  client, not of one URL.
+
+## [Unreleased]
+
+### Changed
+
+- **Requests to eQSL.cc are now spaced.** Where a provider states a request
+  limit this server honours that limit; eQSL.cc states none, so the gap is a
+  recorded judgement rather than a published figure — 200 ms, matching what
+  `sota-mcp` and `iota-mcp` already use, with the reasoning written beside the
+  constant so it can be revisited rather than rediscovered. A volunteer or public
+  service with no stated limit still deserves restraint (KI7MT, 2026-10-11).
+
+  This is not throttling the user. It limits what this server sends to somebody
+  else's service; it does not limit the person asking. The response cache does the
+  larger share of the work by removing requests rather than delaying them, and the
+  spacing covers what a cache cannot: a model calling tools in a loop over inputs
+  that each miss.
+- This server also sent **no `User-Agent` at all**, so eQSL could not tell who
+  was calling or ask us to ease off. It now identifies itself by name and version.
+
+
 ## [0.5.0] — 2026-10-26
 
 ### Changed
