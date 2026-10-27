@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A `429` from eQSL is now honoured.** eQSL asking this client to stop is the
+  most explicit form a request limit takes, and it was previously invisible:
+  every failure became "eQSL request failed — check network and credentials", so
+  a rate limit read as a wrong password. Now the `Retry-After` interval is read
+  and bounded to between a minute and an hour, no further request goes out until
+  it has passed, and the tool says how long to wait rather than sleeping through
+  it. The AG-list download shares that block — the limit is eQSL's view of this
+  client, not of one URL.
+
+## [Unreleased]
+
 ### Changed
 
 - **Requests to eQSL.cc are now spaced.** Where a provider states a request

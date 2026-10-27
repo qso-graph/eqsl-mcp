@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import urllib.error
 import urllib.parse
 import urllib.request
 from typing import Any
@@ -74,8 +75,25 @@ def _get(url: str, query: dict[str, Any] | None = None,
     try:
         with urllib.request.urlopen(req, timeout=timeout, context=_tls.context()) as resp:
             return resp.status, resp.read().decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as exc:
+        # A 429 is eQSL stating its limit outright, so it is honoured. Only the
+        # status and Retry-After are read off the exception; its text and .url
+        # are not used, because this URL carries the password in its query
+        # string -- the same reason the clause below names neither. 503 counts
+        # only with Retry-After, which is a deliberate shed; a bare 503 is an
+        # outage and falls through.
+        if exc.code == 429 or (exc.code == 503 and exc.headers.get("Retry-After")):
+            raise ratelimit.RateLimited(
+                ratelimit.block(exc.headers.get("Retry-After"))
+            ) from None
+        raise RuntimeError("eQSL request failed — check network and credentials") from None
+    except ratelimit.RateLimited:
+        # Raised by ratelimit.wait() when a previous 429 is still in force. It
+        # must not be rewritten as a credentials problem by the clause below:
+        # it is the one failure here that tells the user what to do.
+        raise
     except Exception:
-        raise RuntimeError("eQSL request failed — check network and credentials")
+        raise RuntimeError("eQSL request failed — check network and credentials") from None
 
 
 # ---------------------------------------------------------------------------

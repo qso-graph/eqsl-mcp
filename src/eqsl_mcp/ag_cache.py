@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import time
+import urllib.error
 import urllib.request
 
 from . import __version__, _tls, ratelimit
@@ -37,8 +38,18 @@ def _download_ag_list() -> set[str]:
     req = urllib.request.Request(_AG_URL, method="GET")
     req.add_header("User-Agent", f"eqsl-mcp/{__version__} (+https://qso-graph.io)")
     ratelimit.wait()
-    with urllib.request.urlopen(req, timeout=30, context=_tls.context()) as resp:
-        data = resp.read().decode("utf-8", errors="replace")
+    try:
+        with urllib.request.urlopen(req, timeout=30, context=_tls.context()) as resp:
+            data = resp.read().decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as exc:
+        # The AG list is a plain public file, but a 429 on it is still eQSL
+        # telling this client to stop, and the block it arms is shared with
+        # client.py -- the limit is eQSL's view of us, not of one URL.
+        if exc.code == 429 or (exc.code == 503 and exc.headers.get("Retry-After")):
+            raise ratelimit.RateLimited(
+                ratelimit.block(exc.headers.get("Retry-After"))
+            ) from None
+        raise
     with open(path, "w", encoding="utf-8") as f:
         f.write(data)
     return _parse_ag(data)
