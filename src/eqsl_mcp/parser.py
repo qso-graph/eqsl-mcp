@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import TypedDict
+
+from qso_graph_lib import adif
 
 # ---------------------------------------------------------------------------
 # Types
@@ -42,47 +43,14 @@ class FetchResult:
 # ADIF parser
 # ---------------------------------------------------------------------------
 
-_FIELD_RE = re.compile(
-    r"<([A-Za-z0-9_]+):(\d+)(?::[A-Za-z])?>([^<]*)", re.IGNORECASE
-)
-
-
 def parse_adif(text: str) -> list[dict[str, str]]:
-    """Extract tag→value pairs per <EOR> from raw ADIF text.
+    """Each record's fields, names upper-cased, read by qso_graph_lib.adif.
 
-    Not a full ADIF parser — sufficient for eQSL response payloads.
+    The fleet's one ADI reader, as ADIF 3.1.7 defines it. This module's own scanner
+    read a Header's fields as the first QSO's (ADIF_VER and PROGRAMID, with trailing
+    spaces), and they reached tool results in that QSO's ``adif`` dict.
     """
-    out: list[dict[str, str]] = []
-    current: dict[str, str] = {}
-    i = 0
-    n = len(text)
-    while i < n:
-        if text[i : i + 5].upper() == "<EOR>":
-            if current:
-                out.append(current)
-                current = {}
-            i += 5
-            continue
-        m = _FIELD_RE.match(text, i)
-        if not m:
-            i += 1
-            continue
-        tag, length_s, value = m.group(1), m.group(2), m.group(3)
-        try:
-            length = int(length_s)
-        except ValueError:
-            length = len(value)
-        if len(value) < length:
-            end = m.end()
-            need = length - len(value)
-            value = value + text[end : end + need]
-            i = end + need
-        else:
-            i = m.end()
-        current[tag.upper()] = value
-    if current:
-        out.append(current)
-    return out
+    return [dict(r.fields) for r in adif.iter_records(text)]
 
 
 def to_qso(rec: dict[str, str]) -> QsoRecord:

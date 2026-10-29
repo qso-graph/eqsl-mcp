@@ -5,6 +5,16 @@ All notable changes to `eqsl-mcp` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **ADIF is read by `qso_graph_lib.adif`**, the fleet's one ADI reader, which reads ADI as
+  ADIF 3.1.7 defines it and passes ADIF's own test files. This server's scanner read a
+  Header's fields as the first QSO's, so `ADIF_VER` and `PROGRAMID` (with trailing spaces)
+  reached tool results in that QSO's `adif` fields, and a length that ran past the next tag
+  returned two QSOs as one. New dependency: `qso-graph-lib>=0.2.0` (standard library only).
+
 ## [0.6.0] — 2026-10-27
 
 ### Added
