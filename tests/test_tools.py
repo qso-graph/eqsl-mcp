@@ -382,3 +382,16 @@ class TestTlsAtRuntime:
         from eqsl_mcp._tls import context
 
         assert context().cert_store_stats()["x509_ca"] > 100
+
+
+class TestAdifOnTheLib:
+    """qso_graph_lib.adif reads eQSL's ADIF; what this server's own scanner got wrong."""
+
+    def test_header_fields_are_not_the_first_qso_s(self) -> None:
+        text = ("Received eQSLs for KI7MT\n<ADIF_VER:5>3.1.7 "
+                "<PROGRAMID:21>eQSL.cc DownloadInBox<EOH>\n<CALL:5>K1ABC<BAND:3>20M<EOR>")
+        assert parse_adif(text) == [{"CALL": "K1ABC", "BAND": "20M"}]
+
+    def test_a_length_past_the_next_tag_does_not_run_two_qsos_together(self) -> None:
+        recs = parse_adif("<CALL:9>K1ABC<EOR><CALL:5>W9XYZ<EOR>")
+        assert [r["CALL"] for r in recs] == ["K1ABC", "W9XYZ"]
