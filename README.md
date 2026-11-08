@@ -4,7 +4,7 @@
 [![PyPI](https://img.shields.io/pypi/v/eqsl-mcp?label=PyPI&color=blue)](https://pypi.org/project/eqsl-mcp/)
 [![MCP Registry](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fregistry.modelcontextprotocol.io%2Fv0%2Fservers%3Fsearch%3Dio.github.qso-graph%2Feqsl-mcp%26version%3Dlatest&query=%24.servers%5B0%5D.server.version&label=MCP%20Registry&color=blue)](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.qso-graph/eqsl-mcp&version=latest)
 
-MCP server for [eQSL.cc](https://www.eqsl.cc/) — download incoming eQSLs, verify QSOs, check AG status, and query upload history through any MCP-compatible AI assistant.
+MCP server for [eQSL.cc](https://www.eqsl.cc/)—download incoming eQSLs, verify QSOs, check AG status, and query upload history through any MCP-compatible AI assistant.
 
 Part of the [qso-graph](https://qso-graph.io/) project. Uses [qso-graph-auth](https://pypi.org/project/qso-graph-auth/) for credential management.
 
@@ -45,7 +45,7 @@ All three steps are needed: without `provider enable`, the server reports that t
 
 ### 2. Configure your MCP client
 
-eqsl-mcp works with any MCP-compatible client. Add the server config and restart — tools appear automatically.
+eqsl-mcp works with any MCP-compatible client. Add the server config and restart—tools appear automatically.
 
 #### Claude Desktop
 
@@ -182,7 +182,7 @@ uv run pytest
 
 ## Date Formats
 
-eQSL uses different date formats across endpoints. eqsl-mcp normalizes everything — you always use `YYYY-MM-DD`:
+eQSL uses different date formats across endpoints. eqsl-mcp normalizes everything—you always use `YYYY-MM-DD`:
 
 | You provide | eqsl-mcp sends | Endpoint |
 |-------------|----------------|----------|
