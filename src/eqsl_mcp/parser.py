@@ -46,7 +46,7 @@ class FetchResult:
 def parse_adif(text: str) -> list[dict[str, str]]:
     """Each record's fields, names upper-cased, read by qso_graph_lib.adif.
 
-    The fleet's one ADI reader, as ADIF 3.1.7 defines it. This module's own scanner
+    The fleet's one ADI reader, as ADIF 3.1.8 defines it. This module's own scanner
     read a Header's fields as the first QSO's (ADIF_VER and PROGRAMID, with trailing
     spaces), and they reached tool results in that QSO's ``adif`` dict.
     """
